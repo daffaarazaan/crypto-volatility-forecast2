@@ -20,8 +20,8 @@ st.set_page_config(
 # ----------------------------
 st.title("📉 Crypto Volatility Forecasting Dashboard")
 st.markdown("""
-**Hybrid GARCH + LSTM Model** to forecast 7-day BTC volatility
-Built for traders to anticipate risk & adjust position sizing
+**Hybrid GARCH + LSTM Model** to forecast 7-day BTC volatility  
+Built for traders to anticipate risk & adjust position sizing  
 *Data: Yahoo Finance | Model: Trained in Google Colab*
 """)
 
@@ -30,16 +30,20 @@ Built for traders to anticipate risk & adjust position sizing
 # ----------------------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv('/content/crypto_volatility_forecast_results.csv', parse_dates=['Date'])
+    df = pd.read_csv('crypto_vol_forecast.csv', parse_dates=['Date'])
     df['Date'] = pd.to_datetime(df['Date'])
     return df
 
 try:
     df = load_data()
 except FileNotFoundError:
-    st.error("❌ Data file 'crypto_volatility_forecast_results.csv' not found. Please ensure it is in the same directory as the app.")
-    st.stop()
-
+    st.error("❌ Data file 'crypto_vol_forecast.csv' not found. Please upload it.")
+    uploaded_file = st.file_uploader("Upload your forecast CSV", type=["csv"])
+    if uploaded_file:
+        df = pd.read_csv(uploaded_file, parse_dates=['Date'])
+        df['Date'] = pd.to_datetime(df['Date'])
+    else:
+        st.stop()
 
 # ----------------------------
 # SIDEBAR CONTROLS
@@ -77,20 +81,13 @@ actual = df_filtered['Actual_Volatility']
 garch_pred = df_filtered['GARCH_Volatility']
 lstm_pred = df_filtered['Predicted_Volatility']
 
-# Check if filtered data is not empty before calculating metrics
-if not df_filtered.empty:
-    rmse_garch = ((actual - garch_pred) ** 2).mean() ** 0.5
-    rmse_lstm = ((actual - lstm_pred) ** 2).mean() ** 0.5
-    improvement = (rmse_garch - rmse_lstm) / rmse_garch * 100 if rmse_garch != 0 else 0
+rmse_garch = ((actual - garch_pred) ** 2).mean() ** 0.5
+rmse_lstm = ((actual - lstm_pred) ** 2).mean() ** 0.5
+improvement = (rmse_garch - rmse_lstm) / rmse_garch * 100
 
-    col1.metric("GARCH RMSE", f"{rmse_garch:.4f}")
-    col2.metric("LSTM+GARCH RMSE", f"{rmse_lstm:.4f}", f"{improvement:.1f}% 🎯")
-    col3.metric("Improvement", f"{improvement:.1f}%", "vs GARCH")
-else:
-    col1.info("No data in selected date range.")
-    col2.info("No data in selected date range.")
-    col3.info("No data in selected date range.")
-
+col1.metric("GARCH RMSE", f"{rmse_garch:.4f}")
+col2.metric("LSTM+GARCH RMSE", f"{rmse_lstm:.4f}", f"{improvement:.1f}% 🎯")
+col3.metric("Improvement", f"{improvement:.1f}%", "vs GARCH")
 
 # ----------------------------
 # MAIN CHART
@@ -136,7 +133,7 @@ fig.update_layout(
     height=500
 )
 
-st.plotly_chart(fig, width='stretch')
+st.plotly_chart(fig, use_container_width=True)
 
 # ----------------------------
 # ERROR DISTRIBUTION
@@ -145,29 +142,25 @@ st.subheader("📉 Forecast Error Distribution")
 
 col1, col2 = st.columns(2)
 
-if not df_filtered.empty:
-    with col1:
-        fig_garch_error = px.histogram(
-            df_filtered,
-            x=(df_filtered['Actual_Volatility'] - df_filtered['GARCH_Volatility']),
-            nbins=30,
-            title="GARCH Forecast Errors",
-            color_discrete_sequence=['green']
-        )
-        st.plotly_chart(fig_garch_error, width='stretch')
+with col1:
+    fig_garch_error = px.histogram(
+        df_filtered,
+        x=(df_filtered['Actual_Volatility'] - df_filtered['GARCH_Volatility']),
+        nbins=30,
+        title="GARCH Forecast Errors",
+        color_discrete_sequence=['green']
+    )
+    st.plotly_chart(fig_garch_error, use_container_width=True)
 
-    with col2:
-        fig_lstm_error = px.histogram(
-            df_filtered,
-            x=(df_filtered['Actual_Volatility'] - df_filtered['Predicted_Volatility']),
-            nbins=30,
-            title="LSTM+GARCH Forecast Errors",
-            color_discrete_sequence=['red']
-        )
-        st.plotly_chart(fig_lstm_error, width='stretch')
-else:
-    st.info("No data in selected date range to display error distribution.")
-
+with col2:
+    fig_lstm_error = px.histogram(
+        df_filtered,
+        x=(df_filtered['Actual_Volatility'] - df_filtered['Predicted_Volatility']),
+        nbins=30,
+        title="LSTM+GARCH Forecast Errors",
+        color_discrete_sequence=['red']
+    )
+    st.plotly_chart(fig_lstm_error, use_container_width=True)
 
 # ----------------------------
 # DATA TABLE
@@ -177,7 +170,7 @@ st.dataframe(df_filtered.style.format({
     'Actual_Volatility': '{:.4f}',
     'Predicted_Volatility': '{:.4f}',
     'GARCH_Volatility': '{:.4f}'
-}), width='stretch')
+}), use_container_width=True)
 
 # ----------------------------
 # FOOTER
